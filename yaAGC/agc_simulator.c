@@ -76,11 +76,16 @@ static int SimInitializeEngine(void)
 					result = agc_engine_init (&Simulator.State,
 							Simulator.Options->core, "LM.core", 0);
 				}
-			}
-	    	else
-	    	{
-	    		result = agc_engine_init (&Simulator.State,
-	    				Simulator.Options->core,"core", 0);
+		}
+		else if (Simulator.Options->skip_resume)
+		{
+		        result = agc_engine_init (&Simulator.State,
+					Simulator.Options->core, NULL, 0);
+	        }
+		else
+                {
+	                result = agc_engine_init (&Simulator.State,
+                                        Simulator.Options->core, "core", 0);
 	    	}
 	    }
 	    else
