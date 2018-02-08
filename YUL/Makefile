@@ -18,20 +18,20 @@ ALL_SOURCE:=$(wildcard *.argus)
 # Top-level modules, these include everything else.
 # Omit DIGEST.argus and OPGUIDE.argus, since they do not seem to be valid
 # sources, i.e. they are purely comment text, but not marked as remarks cards.
-SOURCES:=YULPASS0.argus YULPASS1.argus YULPASS2.argus YULPASS3.argus YULMANUF.argus YULSIMUL.argus
+SOURCES:=YULPASS0.argus YULPASS1.argus YULPASS2.argus YULPASS3.argus # YULMANUF.argus YULSIMUL.argus
+
+default: instrcheck symcheck
+
+clean:
+	@rm -f *.symtab *.symerr
 
 symcheck:
 	@echo "Checking for bad symbols..."
-	python $(H800)/tools/check-symbols.py -b $(SOURCES)
+	python $(H800)/tools/check-symbols.py $(SOURCES)
 
-listsyms:
-	@echo "Listing all symbols..."
-	python $(H800)/tools/list-symbols.py YULPASS0.argus >YULPASS0.symtab
-	python $(H800)/tools/list-symbols.py YULPASS1.argus >YULPASS1.symtab
-	python $(H800)/tools/list-symbols.py YULPASS2.argus >YULPASS2.symtab
-	python $(H800)/tools/list-symbols.py YULPASS3.argus >YULPASS3.symtab
-	python $(H800)/tools/list-symbols.py YULMANUF.argus >YULMANUF.symtab
-	#python $(H800)/tools/list-symbols.py YULSIMUL.argus >YULSIMUL.symtab
+symtab:
+	@echo "Generating symbol table..."
+	python $(H800)/tools/list-symbols.py $(SOURCES) >YUL.symtab
 
 instrcheck:
 	@echo "Checking instructions..."
