@@ -1,4 +1,4 @@
-# Copyright 2003-2007,2009-2010,2016,2017 Ronald S. Burkey <info@sandroid.org>
+# Copyright 2003-2007,2009-2010,2016-2018,2020 Ronald S. Burkey <info@sandroid.org>
 #
 # This file is part of yaAGC.
 #
@@ -171,6 +171,23 @@
 #		2017-08-31 RSB	Unconditionally returned Solarium to the mission list, since 
 #				the yaYUL bug related to it that was expressing itself in 
 #				Mac OS X has been fixed.
+#		2018-09-04 MAS	Added LUMINARY130 to mission list.
+#		2018-10-12 RSB	Added the Validation-hardware-simulation target.
+#		2019-06-17 RSB	Added RETREAD50.
+#		2019-07-23 RSB	Added SUNDIALE.
+#		2019-07-27 MAS	Added LUM69R2.
+#		2019-07-28 MAS	Added Luminary 97 and 98.
+#		2019-07-31 RSB	Added COMANCHE051.
+#		2019-08-16 RSB	Added Artemis071.
+#		2019-09-17 MAS	Added Luminary 178.
+#		2019-09-18 RSB	Added yaOBC and yaASM targets.
+#		2019-09-22 RSB	Added Luminary163 and 173 missions.
+#		2020-05-13 RSB	While I had added the yaOBC and yaASM (Gemini) targets a
+#				couple of years ago, for some reason I didn't set them
+#				to be built automatically.  Now they are.  Also, added
+#				the yaLVDC (LVDC/PTC) target, and have it build automatically.
+#		2020-07-22 RSB	Added SundanceXXX.
+#		2020-08-05 RSB	Added Sundance306ish.
 #
 # The build box is always Linux for cross-compiles.  For native compiles:
 #	Use "make MACOSX=yes" for Mac OS X.
@@ -189,7 +206,7 @@
 # certain changes that *may* allow building with clang rather than gcc.
 
 # NVER is the overall version code for the release.
-NVER:=\\\"2017-06-19\\\"
+NVER:=\\\"2020-07-22\\\"
 DATE:=`date +%Y%m%d`
 
 # DON'T CHANGE THE FOLLOWING SWITCH *********************************
@@ -413,23 +430,28 @@ BUILD = $(MAKE) PREFIX=$(PREFIX) NVER=$(NVER) CFLAGS="$(CFLAGS)" CURSES="$(CURSE
 
 # List of mission software directories to be built.
 MISSIONS = Validation Zerlina56 Luminary131 Colossus249 Comanche055 
-MISSIONS += Luminary099 Artemis072 Colossus237
+MISSIONS += Luminary099 Artemis072 Colossus237 Luminary130
 MISSIONS += Aurora12 Sunburst120 Luminary210 Retread44 Luminary069
 MISSIONS += SuperJob LUM99R2 Luminary116 Borealis Sunburst37 LMY99R0
+MISSIONS += Retread50 SundialE LUM69R2 Luminary097 Luminary098
+MISSIONS += Comanche051 Artemis071 Luminary178 Luminary163 Luminary173
+MISSIONS += SundanceXXX Sundance306ish
 # ifndef MACOSX
-MISSIONS += Solarium055
+MISSIONS += Solarium055 TRIVIUM TRIVIUM-repaired
 # endif
 export MISSIONS
 
 # Missions needing code::blocks project files.
-cbMISSIONS = Validation Luminary131 Colossus249 Comanche055 
+cbMISSIONS = Validation Luminary131 Colossus249 Comanche055 Luminary130
 cbMISSIONS += Luminary099 Artemis072 Colossus237 Aurora12 Sunburst120 LMY99R0
 cbMISSIONS += Luminary069 LUM99R2 Luminary116 Luminary210 Retread44 Borealis SuperJob
+cbMISSIONS += LUM69R2 Luminary097 Luminary098 Luminary178
 cbMISSIONS := $(patsubst %,%.cbp,$(cbMISSIONS))
 
 # The base set of targets to be built always.
 SUBDIRS = Tools yaLEMAP yaAGC yaAGS yaYUL ControlPulseSim yaUniverse
 SUBDIRS += yaAGC-Block1-Pultorak yaAGCb1 yaUplinkBlock1 Validation-Block1
+SUBDIRS += yaASM yaOBC yaLVDC
 SUBDIRS += $(MISSIONS)
 
 ifndef NOGUI
@@ -478,6 +500,9 @@ missions: $(MISSIONS)
 
 $(MISSIONS): yaYUL Tools
 	$(BUILD) -C $@
+
+Validation-hardware-simulation: yaYUL
+	$(BUILD) -C Validation $@.agc.bin 
 
 clean-missions:
 	for subdir in $(MISSIONS) ; do $(BUILD) -C $$subdir clean ; done
@@ -542,6 +567,18 @@ VirtualAGC:
 .PHONY: VirtualAGC-installer
 VirtualAGC-installer: all
 	$(BUILD) -C VirtualAGC "YADSKY_SUFFIX=$(YADSKY_SUFFIX)" "YADEDA_SUFFIX=$(YADEDA_SUFFIX)" $(ISMACOSX) $(DEV_STATIC) VirtualAGC-installer
+
+.PHONY: yaASM
+yaASM:
+	$(BUILD) -C $@
+
+.PHONY: yaOBC
+yaOBC:
+	$(BUILD) -C $@
+
+.PHONY: yaLVDC
+yaLVDC:
+	$(BUILD) -C $@
 
 # This target is for making HTML assembly listings for the website.
 .PHONY: listings
@@ -640,6 +677,8 @@ Validation.cbp:
 clean: clean-missions
 	$(MAKE) -C yaLEMAP clean
 	$(MAKE) -C yaASM clean
+	$(MAKE) -C yaOBC clean
+	$(MAKE) -C yaLVDC clean
 	$(MAKE) -C yaAGC clean
 	$(MAKE) -C yaAGS clean
 	$(MAKE) -C yaDSKY/src -f Makefile.all-archs clean

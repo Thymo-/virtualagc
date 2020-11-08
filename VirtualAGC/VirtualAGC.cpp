@@ -1,5 +1,5 @@
 /*
- * Copyright 2009,2010,2016,2017 Ronald S. Burkey <info@sandroid.org>
+ * Copyright 2009,2010,2016-20020 Ronald S. Burkey <info@sandroid.org>
  *
  * This file is part of yaAGC.
  *
@@ -106,6 +106,22 @@
  *          	2017-10-03 RSB	Changed definition of a "small" display to be anything less
  *          			than 1200 (as opposed to less than 1080), due to this issue:
  *          			https://github.com/virtualagc/virtualagc/issues/1051.
+ *          	2018-03-04 RSB	Added the --radio-buttons, --normal, --squish and --maximize
+ *          			command-line options for selecting the size of the UI window,
+ *          			and removed the attempt to deduce an appropriate setting from
+ *          			the number of pixels on the display ... which didn't seem to
+ *          			work well anyway.
+ *          	2019-07-23 RSB	Added SundialE.  I don't seem to have noted when I earlier
+ *          			added Retread50, and perhaps other stuff.  What's the deal?
+ *          	2019-07-28 RSB  Added Luminary 69 Rev 2 and Luminary 130.
+ *          	2019-07-31 RSB	Added Comanche 51.  Also, I had added Luminary 97 and 98 a
+ *          			couple of days ago, but neglected to mention it.
+ *          	2019-08-16 RSB	Added Artemis 71.
+ *          	2019-09-22 RSB  Added Luminary 163 and 173.
+ *          	2020-07-23 RSB  Added Sundance XXX.
+ *          	2020-08-13 RSB  Updated Apollo 9 LM support to use Sundance306ish (phase 2
+ *          	                reconstruction of Sundance 306) in place of SundanceXXX
+ *          	                (phase 1 reconstrunction).
  *
  * This file was originally generated using the wxGlade RAD program.
  * However, it is now maintained entirely manually, and cannot be managed
@@ -125,6 +141,11 @@
 #include "VirtualAGC.h"
 #include "../yaAGC/yaAGC.h"
 #include "../yaAGC/agc_engine.h"
+
+int noSquish = 0;
+int dropdownSquish = 1;
+int maximumSquish = 0;
+int maximizeAtStartup = 0;
 
 /*
  * The following array specifies most properties of "missions" (i.e., specific
@@ -148,7 +169,7 @@ static const missionAlloc_t missionConstants[ID_AGCCUSTOMBUTTON
                 DISABLED, CM, BLOCK1, NO_PERIPHERALS, "", "CM0.ini" },
             { "Apollo 4 Command Module", "Solarium055/MAIN.agc.html",
                 "Click this to select the unmanned Apollo 4 Block 1 CM mission, running software SOLARIUM 55, "
-                "which is believed to be identical to SOLARIUM 54.",
+                    "which is believed to be identical to SOLARIUM 54.",
                 ENABLED, CM, BLOCK1, NO_PERIPHERALS, "Solarium055", "CM0.ini" },
             { "Apollo 5 Lunar Module", "Sunburst120/MAIN.agc.html",
                 "Click this to select the unmanned Apollo 5 LM mission, running software SUNBURST 120.",
@@ -156,6 +177,9 @@ static const missionAlloc_t missionConstants[ID_AGCCUSTOMBUTTON
             { "Apollo 6 Command Module", "Solarium055/MAIN.agc.html",
                 "Click this to select the unmanned Apollo 6 Block 1 CM mission, running software SOLARIUM 55.",
                 ENABLED, CM, BLOCK1, NO_PERIPHERALS, "Solarium055", "CM0.ini" },
+            { "2TV-1 Command Module", "SundialE/MAIN.agc.html",
+                "Click this to select the 2TV-1 mission, running software Sundial E.",
+                ENABLED, CM, BLOCK2, PERIPHERALS, "SundialE", "CM.ini" },
             { "Apollo 7 Command Module", "",
                 "Click this to select the Apollo 7 mission.", DISABLED, CM,
                 BLOCK2, PERIPHERALS, "", "CM.ini" },
@@ -165,26 +189,38 @@ static const missionAlloc_t missionConstants[ID_AGCCUSTOMBUTTON
             { "Apollo 9 Command Module", "Colossus249/MAIN.agc.html",
                 "Click this to select the CM for the Apollo 9 mission, running software COLOSSUS 249.",
                 ENABLED, CM, BLOCK2, PERIPHERALS, "Colossus249", "CM.ini" },
-            { "Apollo 9 Lunar Module", "",
-                "Click this to select the LM for the Apollo 9 mission.",
-                DISABLED, LM, BLOCK2, PERIPHERALS, "", "CM.ini"  /* Yes, the CM is intentional */},
+            { "Apollo 9 Lunar Module", "Sundance306ish/MAIN.agc.html",
+                "Click this to select the Sundance306ish (phase 2 reconstruction of Sundance 306) software for the Apollo 9 LM.",
+                ENABLED, LM, BLOCK2, PERIPHERALS, "Sundance306ish", "CM.ini" /* Yes, the CM is intentional */},
             { "Apollo 10 Command Module", "",
                 "Click this to select the CM for the Apollo 10 mission.",
                 DISABLED, CM, BLOCK2, PERIPHERALS, "", "CM.ini" },
-            { "Apollo 10 Lunar Module", "Luminary069/MAIN.agc.html",
+            { "LUMINARY 69 rev 0 (LM)", "Luminary069/MAIN.agc.html",
+                "Click this to select Luminary 69 rev 0, a preliminary revision of the Apollo 10 LM software.",
+                ENABLED, LM, BLOCK2, PERIPHERALS, "Luminary069", "CM.ini" /* Yes, the CM is intentional */},
+            { "Apollo 10 Lunar Module", "LUM69R2/MAIN.agc.html",
                 "Click this to select the LM for the Apollo 10 mission.",
-                ENABLED, LM, BLOCK2, PERIPHERALS, "Luminary069", "CM.ini" /* Yes, the CM is intentional */ },
+                ENABLED, LM, BLOCK2, PERIPHERALS, "LUM69R2", "CM.ini" /* Yes, the CM is intentional */},
+            { "COMANCHE 51 (CM)", "Comanche051/MAIN.agc.html",
+                "Click this to select Comanche 51, the original software release targeting the Apollo 11 CM.",
+                ENABLED, CM, BLOCK2, PERIPHERALS, "Comanche051", "CM.ini" },
             { "Apollo 11 Command Module", "Comanche055/MAIN.agc.html",
                 "Click this to select the CM for the Apollo 11 mission, running software COMANCHE 55.",
                 ENABLED, CM, BLOCK2, PERIPHERALS, "Comanche055", "CM.ini" },
-	    { "Apollo 11 Lunar Module rev 0", "LMY99R0/MAIN.agc.html",
-		"Click this to select the LM for the Apollo 11 mission, running reconstructed software LUMINARY 99 Rev 0.",
-		ENABLED, LM, BLOCK2, PERIPHERALS, "LMY99R0", "LM.ini" },
-            { "Apollo 11 Lunar Module rev 1", "Luminary099/MAIN.agc.html",
+            { "LUMINARY 97 (LM)", "Luminary097/MAIN.agc.html",
+                "Click this to select Luminary 97, the original software release targeting the Apollo 11 LM.",
+                ENABLED, LM, BLOCK2, PERIPHERALS, "Luminary097", "LM.ini" },
+            { "LUMINARY 98 (LM)", "Luminary098/MAIN.agc.html",
+                "Click this to select Luminary 98, an engineering revision of the Apollo 11 LM software.",
+                ENABLED, LM, BLOCK2, PERIPHERALS, "Luminary098", "LM.ini" },
+            { "LUMINARY 99 Rev 0 (LM)", "LMY99R0/MAIN.agc.html",
+                "Click this to select Luminary 99 rev 0, the 2nd software release targeting the Apollo 11 LM.",
+                ENABLED, LM, BLOCK2, PERIPHERALS, "LMY99R0", "LM.ini" },
+            { "Apollo 11 Lunar Module", "Luminary099/MAIN.agc.html",
                 "Click this to select the LM for the Apollo 11 mission, running software LUMINARY 99 Rev 1.",
                 ENABLED, LM, BLOCK2, PERIPHERALS, "Luminary099", "LM.ini" },
-            { "Apollo 11 Lunar Module rev 2", "LUM99R2/MAIN.agc.html",
-                "Click this to select the LM for the Apollo 11 mission, running reconstructed software LUMINARY 99 Rev 2.",
+            { "LUMINARY 99 rev 2 (LM)", "LUM99R2/MAIN.agc.html",
+                "Click this to select Luminary 99 rev 2, a hypothetical but unflown revision of the Apollo 11 LM software.",
                 ENABLED, LM, BLOCK2, PERIPHERALS, "LUM99R2", "LM.ini" },
             { "Apollo 12 Command Module", "",
                 "Click this to select the CM for the Apollo 12 mission.",
@@ -195,15 +231,27 @@ static const missionAlloc_t missionConstants[ID_AGCCUSTOMBUTTON
             { "Apollo 13 Command Module", "",
                 "Click this to select the CM for the Apollo 13 mission.",
                 DISABLED, CM, BLOCK2, PERIPHERALS, "", "CM.ini" },
+            { "LUMINARY 130 (LM)", "Luminary130/MAIN.agc.html",
+                "Click this to select Luminary 130, a preliminary revision of the Apollo 13 LM software.",
+                ENABLED, LM, BLOCK2, PERIPHERALS, "Luminary130", "LM.ini" },
             { "Apollo 13 Lunar Module", "Luminary131/MAIN.agc.html",
                 "Click this to select the LM for the Apollo 13 mission, running software LUMINARY 131.",
                 ENABLED, LM, BLOCK2, PERIPHERALS, "Luminary131", "LM.ini" },
             { "Apollo 14 Command Module", "",
                 "Click this to select the CM for the Apollo 14 mission.",
                 DISABLED, CM, BLOCK2, PERIPHERALS, "", "CM.ini" },
-            { "Apollo 14 Lunar Module", "",
+            { "LUMINARY 163 (LM)", "Luminary163/MAIN.agc.html",
+                "Click this to select Luminary 163, the 1st software release targeting the Apollo 14 mission.",
+                ENABLED, LM, BLOCK2, PERIPHERALS, "Luminary163", "LM.ini" },
+            { "LUMINARY 173 (LM)", "Luminary173/MAIN.agc.html",
+                "Click this to select Luminary 173, the 2nd software release targeting the Apollo 14 mission.",
+                ENABLED, LM, BLOCK2, PERIPHERALS, "Luminary173", "LM.ini" },
+            { "Apollo 14 Lunar Module", "Luminary178/MAIN.agc.html",
                 "Click this to select the LM for the Apollo 14 mission.",
-                DISABLED, LM, BLOCK2, PERIPHERALS, "", "LM.ini" },
+                ENABLED, LM, BLOCK2, PERIPHERALS, "Luminary178", "LM.ini" },
+            { "ARTEMIS 71 (CM)", "Artemis071/MAIN.agc.html",
+                "Click this to select Artemis 71, the initial software release targeting the CM for the Apollo 15 mission.",
+                ENABLED, CM, BLOCK2, PERIPHERALS, "Artemis071", "CM.ini" },
             { "Apollo 15-17 Command Module", "Artemis072/MAIN.agc.html",
                 "Click this to select the CM for the Apollo 15-17 mission, running software ARTEMIS 72.",
                 ENABLED, CM, BLOCK2, PERIPHERALS, "Artemis072", "CM.ini" },
@@ -222,6 +270,9 @@ static const missionAlloc_t missionConstants[ID_AGCCUSTOMBUTTON
             { "RETREAD 44 (LM)", "Retread44/MAIN.agc.html",
                 "Click this to select the RETREAD 44 (earliest non-mission LM) software.",
                 ENABLED, LM, BLOCK2, NO_PERIPHERALS, "Retread44", "LM0.ini" },
+            { "RETREAD 50 (LM)", "Retread50/MAIN.agc.html",
+                "Click this to select the RETREAD 50 software.",
+                ENABLED, LM, BLOCK2, NO_PERIPHERALS, "Retread50", "LM0.ini" },
             { "AURORA 12 (LM)", "Aurora12/MAIN.agc.html",
                 "Click this to select the AURORA 12 (early non-mission LM) software.  This is the last AGC version with full testing capabilities.",
                 ENABLED, LM, BLOCK2, NO_PERIPHERALS, "Aurora12", "LM0.ini" },
@@ -236,8 +287,7 @@ static const missionAlloc_t missionConstants[ID_AGCCUSTOMBUTTON
                 ENABLED, LM, BLOCK2, PERIPHERALS, "Zerlina56", "LM.ini" },
             { "SUPER JOB", "SuperJob/MAIN.agc.html",
                 "Click this to select SUPER JOB (Raytheon Auxiliary Memory test) software.  Note that to run meaningfully, a simulated Auxiliary Memory unit (not yet available!) needs to be run also.",
-                ENABLED, CM, BLOCK2, NO_PERIPHERALS, "SuperJob", "CM.ini" }
-      };
+                ENABLED, CM, BLOCK2, NO_PERIPHERALS, "SuperJob", "CM.ini" } };
 
 // This is the array where shell commands for the Digital Uplink
 // are stored.
@@ -276,14 +326,18 @@ VirtualAGC::SetSize(void)
   wxImage Image;
   wxSize Size;
   int Width, Height;
-  SET_FONT(SimTypeLabel, 2);
-  SET_FONT(SimTypeLabel2, 2);
+  if (!maximumSquish)
+    {
+      SET_FONT(SimTypeLabel, 2);
+      SET_FONT(SimTypeLabel2, 2);
+      SET_FONT(DeviceListLabel, 2);
+      SET_FONT(OptionList, 2);
+      SET_FONT(AeaCustomFilename, 0);
+      SET_FONT(AeaCustomButton, 0);
+    }
   //SET_FONT (AgcFilenameLabel, 0);
   SET_FONT(AgcCustomFilename, 0);
-  SET_FONT(DeviceListLabel, 2);
   //SET_FONT (AeaFilenameLabel, 0);
-  SET_FONT(AeaCustomFilename, 0);
-  SET_FONT(OptionList, 2);
   int mission;
   for (mission = ID_FIRSTMISSION; mission < ID_AGCCUSTOMBUTTON; mission++)
     {
@@ -309,7 +363,6 @@ VirtualAGC::SetSize(void)
   SET_FONT(FlightProgram6Button, 0);
   SET_FONT(FlightProgram7Button, 0);
   SET_FONT(FlightProgram8Button, 0);
-  SET_FONT(AeaCustomButton, 0);
   SET_FONT(StartupWipeButton, 0);
   SET_FONT(StartupPreserveButton, 0);
   SET_FONT(StartupResumeButton, 0);
@@ -344,26 +397,29 @@ VirtualAGC::SetSize(void)
 VirtualAGC::VirtualAGC(wxWindow* parent, int id, const wxString& title,
     const wxPoint& pos, const wxSize& size, long style) :
     wxFrame(parent, id, title, pos, size,
-        wxCAPTION | wxMINIMIZE_BOX | wxCLOSE_BOX | wxCLIP_CHILDREN
-            | wxSYSTEM_MENU)
+        maximumSquish ?
+            (maximizeAtStartup ? wxMAXIMIZE : 0) :
+            (wxCAPTION | wxMINIMIZE_BOX | wxCLOSE_BOX | wxCLIP_CHILDREN
+                | wxSYSTEM_MENU))
 {
 
   // We auto-adjust fonts and image sizes if the screen size is too small.
   wxFont Font = GetFont();
   StartingPoints = Font.GetPointSize();
   Points = StartingPoints;
-  int x, y, height, width;
-  wxClientDisplayRect(&x, &y, &width, &height);
+  //int x, y;
+  //int height, width;
+  //wxClientDisplayRect (&x, &y, &width, &height);
   DropDown = false;
   ReallySmall = false;
-  if (height < 1200 || width < 1280)
-    {
-      Points = StartingPoints - 2;
-      ReallySmall = true;
-    }
-  else if (height < 768 || width < 1024)
+  if (maximumSquish)
     {
       Points = StartingPoints - 4;
+      ReallySmall = true;
+    }
+  else if (dropdownSquish)
+    {
+      Points = StartingPoints - 2;
       ReallySmall = true;
     }
   if (ReallySmall)
@@ -422,37 +478,45 @@ VirtualAGC::VirtualAGC(wxWindow* parent, int id, const wxString& title,
       wxT("LM Abort Computer (AEA) software"));
   sizer_19_staticbox = new wxStaticBox(this, -1,
       wxT("Guidance Computer (AGC) software"));
-  Patch1Bitmap = new wxStaticBitmap(this, wxID_ANY,
-      wxBitmap(wxT("apo1.png"), wxBITMAP_TYPE_ANY));
-  Patch7Bitmap = new wxStaticBitmap(this, wxID_ANY,
-      wxBitmap(wxT("apo7.png"), wxBITMAP_TYPE_ANY));
-  Patch8Bitmap = new wxStaticBitmap(this, wxID_ANY,
-      wxBitmap(wxT("apo8.png"), wxBITMAP_TYPE_ANY));
-  Patch9Bitmap = new wxStaticBitmap(this, wxID_ANY,
-      wxBitmap(wxT("apo9.png"), wxBITMAP_TYPE_ANY));
-  Patch10Bitmap = new wxStaticBitmap(this, wxID_ANY,
-      wxBitmap(wxT("apo10.png"), wxBITMAP_TYPE_ANY));
-  Patch11Bitmap = new wxStaticBitmap(this, wxID_ANY,
-      wxBitmap(wxT("apo11.png"), wxBITMAP_TYPE_ANY));
-  PatchBitmap = new wxStaticBitmap(this, wxID_ANY,
-      wxBitmap(wxT("ApolloPatch2.png"), wxBITMAP_TYPE_ANY));
-  Patch12Bitmap = new wxStaticBitmap(this, wxID_ANY,
-      wxBitmap(wxT("apo12.png"), wxBITMAP_TYPE_ANY));
-  Patch13Bitmap = new wxStaticBitmap(this, wxID_ANY,
-      wxBitmap(wxT("apo13.png"), wxBITMAP_TYPE_ANY));
-  Patch14Bitmap = new wxStaticBitmap(this, wxID_ANY,
-      wxBitmap(wxT("apo14.png"), wxBITMAP_TYPE_ANY));
-  Patch15Bitmap = new wxStaticBitmap(this, wxID_ANY,
-      wxBitmap(wxT("apo15.png"), wxBITMAP_TYPE_ANY));
-  Patch16Bitmap = new wxStaticBitmap(this, wxID_ANY,
-      wxBitmap(wxT("apo16.png"), wxBITMAP_TYPE_ANY));
-  Patch17Bitmap = new wxStaticBitmap(this, wxID_ANY,
-      wxBitmap(wxT("apo17.png"), wxBITMAP_TYPE_ANY));
+  if (!maximumSquish)
+    {
+      Patch1Bitmap = new wxStaticBitmap(this, wxID_ANY,
+          wxBitmap(wxT("apo1.png"), wxBITMAP_TYPE_ANY));
+      Patch7Bitmap = new wxStaticBitmap(this, wxID_ANY,
+          wxBitmap(wxT("apo7.png"), wxBITMAP_TYPE_ANY));
+      Patch8Bitmap = new wxStaticBitmap(this, wxID_ANY,
+          wxBitmap(wxT("apo8.png"), wxBITMAP_TYPE_ANY));
+      Patch9Bitmap = new wxStaticBitmap(this, wxID_ANY,
+          wxBitmap(wxT("apo9.png"), wxBITMAP_TYPE_ANY));
+      Patch10Bitmap = new wxStaticBitmap(this, wxID_ANY,
+          wxBitmap(wxT("apo10.png"), wxBITMAP_TYPE_ANY));
+      Patch11Bitmap = new wxStaticBitmap(this, wxID_ANY,
+          wxBitmap(wxT("apo11.png"), wxBITMAP_TYPE_ANY));
+      PatchBitmap = new wxStaticBitmap(this, wxID_ANY,
+          wxBitmap(wxT("ApolloPatch2.png"), wxBITMAP_TYPE_ANY));
+      Patch12Bitmap = new wxStaticBitmap(this, wxID_ANY,
+          wxBitmap(wxT("apo12.png"), wxBITMAP_TYPE_ANY));
+      Patch13Bitmap = new wxStaticBitmap(this, wxID_ANY,
+          wxBitmap(wxT("apo13.png"), wxBITMAP_TYPE_ANY));
+      Patch14Bitmap = new wxStaticBitmap(this, wxID_ANY,
+          wxBitmap(wxT("apo14.png"), wxBITMAP_TYPE_ANY));
+      Patch15Bitmap = new wxStaticBitmap(this, wxID_ANY,
+          wxBitmap(wxT("apo15.png"), wxBITMAP_TYPE_ANY));
+      Patch16Bitmap = new wxStaticBitmap(this, wxID_ANY,
+          wxBitmap(wxT("apo16.png"), wxBITMAP_TYPE_ANY));
+      Patch17Bitmap = new wxStaticBitmap(this, wxID_ANY,
+          wxBitmap(wxT("apo17.png"), wxBITMAP_TYPE_ANY));
+    }
   TopLine = new wxStaticLine(this, wxID_ANY);
-  SimTypeLabel = new wxStaticText(this, wxID_ANY, wxT("AGC Simulation Type"),
-      wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE);
-  SimTypeLabel2 = new wxStaticText(this, wxID_ANY, wxT("AGC Simulation Type"),
-      wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE);
+  if (!maximumSquish)
+    {
+      SimTypeLabel = new wxStaticText(this, wxID_ANY,
+          wxT("AGC Simulation Type"), wxDefaultPosition, wxDefaultSize,
+          wxALIGN_CENTRE);
+      SimTypeLabel2 = new wxStaticText(this, wxID_ANY,
+          wxT("AGC Simulation Type"), wxDefaultPosition, wxDefaultSize,
+          wxALIGN_CENTRE);
+    }
   for (int i = ID_FIRSTMISSION; i < ID_AGCCUSTOMBUTTON; i++)
     {
       if (i == ID_FIRSTMISSION)
@@ -470,11 +534,13 @@ VirtualAGC::VirtualAGC(wxWindow* parent, int id, const wxString& title,
       wxDefaultSize, wxLI_VERTICAL);
   for (int i = ID_FIRSTMISSION; i < ID_AGCCUSTOMBUTTON; i++)
     if (missionConstants[i - ID_FIRSTMISSION].enabled)
-      SoftwareVersionNames.Add(wxString::FromUTF8(missionConstants[i - ID_FIRSTMISSION].name));
+      SoftwareVersionNames.Add(
+          wxString::FromUTF8(missionConstants[i - ID_FIRSTMISSION].name));
   DeviceAGCversionDropDownList = new wxChoice(this, ID_AGCSOFTWAREDROPDOWNLIST,
       wxDefaultPosition, wxDefaultSize, SoftwareVersionNames);
-  DeviceListLabel = new wxStaticText(this, wxID_ANY, wxT("Interfaces"),
-      wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE);
+  if (!maximumSquish)
+    DeviceListLabel = new wxStaticText(this, wxID_ANY, wxT("Interfaces"),
+        wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE);
   DeviceAgcCheckbox = new wxCheckBox(this, ID_DEVICEAGCCHECKBOX,
       wxT("Guidance Computer"));
   DeviceDskyCheckbox = new wxCheckBox(this, ID_DEVICEDSKYCHECKBOX,
@@ -509,8 +575,11 @@ VirtualAGC::VirtualAGC(wxWindow* parent, int id, const wxString& title,
   static_line_5 = new wxStaticLine(this, wxID_ANY);
   AgcSourceButton = new wxButton(this, ID_AGCSOURCEBUTTON, wxT("AGC"));
   AeaSourceButton = new wxButton(this, ID_AEASOURCEBUTTON, wxT("AEA"));
-  OptionList = new wxStaticText(this, wxID_ANY, wxT("Options"),
-      wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE);
+  if (!maximumSquish)
+    {
+      OptionList = new wxStaticText(this, wxID_ANY, wxT("Options"),
+          wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE);
+    }
   StartupWipeButton = new wxRadioButton(this, ID_STARTUPWIPEBUTTON,
       wxT("Restart program, wiping memory"), wxDefaultPosition, wxDefaultSize,
       wxRB_GROUP);
@@ -558,9 +627,14 @@ VirtualAGC::VirtualAGC(wxWindow* parent, int id, const wxString& title,
       wxT("Apollo 12-14? (Flight Program 7)"));
   FlightProgram8Button = new wxRadioButton(this, ID_FLIGHTPROGRAM8BUTTON,
       wxT("Apollo 15-17 (Flight Program 8)"));
-  AeaCustomButton = new wxRadioButton(this, ID_AEACUSTOMBUTTON, wxT("Custom:"));
-  AeaCustomFilename = new wxTextCtrl(this, ID_AEACUSTOMFILENAME, wxEmptyString);
-  AeaFilenameBrowse = new wxButton(this, ID_AEAFILENAMEBROWSE, wxT("..."));
+  if (!maximumSquish)
+    {
+      AeaCustomButton = new wxRadioButton(this, ID_AEACUSTOMBUTTON,
+          wxT("Custom:"));
+      AeaCustomFilename = new wxTextCtrl(this, ID_AEACUSTOMFILENAME,
+          wxEmptyString);
+      AeaFilenameBrowse = new wxButton(this, ID_AEAFILENAMEBROWSE, wxT("..."));
+    }
   static_line_1 = new wxStaticLine(this, wxID_ANY);
   RunButton = new wxButton(this, ID_RUNBUTTON, wxT("Run!"));
   DefaultsButton = new wxButton(this, ID_DEFAULTSBUTTON, wxT("Defaults"));
@@ -628,32 +702,43 @@ EVT_RADIOBUTTON(ID_APOLLO3CMBUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_APOLLO4CMBUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_APOLLO5LMBUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_APOLLO6CMBUTTON, VirtualAGC::ConsistencyEvent)
+EVT_RADIOBUTTON(ID_SUNDIALECMBUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_APOLLO7CMBUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_APOLLO8CMBUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_APOLLO9CMBUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_APOLLO9LMBUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_APOLLO10CMBUTTON, VirtualAGC::ConsistencyEvent)
+EVT_RADIOBUTTON(ID_LUM69BUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_APOLLO10LMBUTTON, VirtualAGC::ConsistencyEvent)
+EVT_RADIOBUTTON(ID_COMANCHE51BUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_COMANCHE55BUTTON, VirtualAGC::ConsistencyEvent)
+EVT_RADIOBUTTON(ID_LUMINARY97BUTTON, VirtualAGC::ConsistencyEvent)
+EVT_RADIOBUTTON(ID_LUMINARY98BUTTON, VirtualAGC::ConsistencyEvent)
+EVT_RADIOBUTTON(ID_LMY99R0BUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_LUMINARY99BUTTON, VirtualAGC::ConsistencyEvent)
+EVT_RADIOBUTTON(ID_LUM99R2BUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_APOLLO12CMBUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_APOLLO12LMBUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_APOLLO13CMBUTTON, VirtualAGC::ConsistencyEvent)
+EVT_RADIOBUTTON(ID_LUMINARY130BUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_LUMINARY131BUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_APOLLO14CMBUTTON, VirtualAGC::ConsistencyEvent)
+EVT_RADIOBUTTON(ID_LUMINARY163BUTTON, VirtualAGC::ConsistencyEvent)
+EVT_RADIOBUTTON(ID_LUMINARY173BUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_APOLLO14LMBUTTON, VirtualAGC::ConsistencyEvent)
+EVT_RADIOBUTTON(ID_ARTEMIS71BUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_ARTEMIS72BUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_APOLLO15LMBUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_SKYLABCMBUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_SOYUZCMBUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_VALIDATIONBUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_RETREAD44BUTTON, VirtualAGC::ConsistencyEvent)
+EVT_RADIOBUTTON(ID_RETREAD50BUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_AURORA12BUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_SUNBURST37BUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_ZERLINA56BUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_SUPERJOBBUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_AGCCUSTOMBUTTON, VirtualAGC::ConsistencyEvent)
-EVT_RADIOBUTTON(ID_LUM99R2BUTTON, VirtualAGC::ConsistencyEvent)
 EVT_RADIOBUTTON(ID_BOREALISBUTTON, VirtualAGC::ConsistencyEvent)
 END_EVENT_TABLE();
 
@@ -684,10 +769,11 @@ VirtualAGC::AgcFilenameBrowseEvent(wxCommandEvent &event)
             {
               if (wxYES
                   != wxMessageBox(
-                      wxT("This source file is in the installation directory.\n"
-                      L"Assembling it may overwrite some of Virtual AGC\'s\n"
-                      L"distribution files.  Are you sure?"), wxT("Warning"),
-                      wxYES_NO | wxICON_QUESTION))
+                      wxT(
+                          "This source file is in the installation directory.\n"
+                              L"Assembling it may overwrite some of Virtual AGC\'s\n"
+                              L"distribution files.  Are you sure?"),
+                      wxT("Warning"), wxYES_NO | wxICON_QUESTION))
                 goto Done;
             }
           // Check whether final output files or intermediate files that might
@@ -819,10 +905,13 @@ VirtualAGC::AeaFilenameBrowseEvent(wxCommandEvent &event)
       wxT("Choose AEA/AGS executable-binary file"), AeaDirectory, wxT(""),
       wxT("Source files (*.aea)|*.aea|Binary files (*.bin)|*.bin"),
       wxFD_DEFAULT_STYLE | wxFD_FILE_MUST_EXIST | wxFD_CHANGE_DIR);
-  if (AeaCustomFilename->GetValue().IsEmpty())
-    Dialog->SetDirectory(HomeDirectory);
-  else
-    Dialog->SetPath(AeaCustomFilename->GetValue());
+  if (!maximumSquish)
+    {
+      if (AeaCustomFilename->GetValue().IsEmpty())
+        Dialog->SetDirectory(HomeDirectory);
+      else
+        Dialog->SetPath(AeaCustomFilename->GetValue());
+    }
   if (wxID_OK == Dialog->ShowModal())
     {
       wxString Pathname = Dialog->GetPath();
@@ -837,10 +926,11 @@ VirtualAGC::AeaFilenameBrowseEvent(wxCommandEvent &event)
             {
               if (wxYES
                   != wxMessageBox(
-                      wxT("This source file is in the installation directory.\n"
-                          L"Assembling it may overwrite some of Virtual AGC\'s\n"
-                          L"distribution files.  Are you sure?"), wxT("Warning"),
-                      wxYES_NO | wxICON_QUESTION))
+                      wxT(
+                          "This source file is in the installation directory.\n"
+                              L"Assembling it may overwrite some of Virtual AGC\'s\n"
+                              L"distribution files.  Are you sure?"),
+                      wxT("Warning"), wxYES_NO | wxICON_QUESTION))
                 goto Done;
             }
           // Check whether final output files or intermediate files that might
@@ -963,8 +1053,11 @@ VirtualAGC::AeaFilenameBrowseEvent(wxCommandEvent &event)
           wxMessageBox(Dummy, wxT("Info"), wxICON_INFORMATION);
         }
       Pathname = Basename + wxT(".bin");
-      AeaCustomFilename->SetValue(Pathname);
-      AeaDirectory = Directory;
+      if (!maximumSquish)
+        {
+          AeaCustomFilename->SetValue(Pathname);
+          AeaDirectory = Directory;
+        }
     }
   Done: delete Dialog;
   EnforceConsistency();
@@ -1268,7 +1361,7 @@ VirtualAGC::AeaSourceEvent(wxCommandEvent &event)
     Dummy += wxT("FP7/FP7.aea.html");
   else if (FlightProgram8Button->GetValue())
     Dummy += wxT("FP8/FP8.aea.html");
-  else if (AeaCustomButton->GetValue())
+  else if (!maximumSquish && AeaCustomButton->GetValue())
     Dummy = wxT("file://") + AeaCustomFilename->GetValue().BeforeLast('.')
         + wxT(".aea.html");
   wxLaunchDefaultBrowser(Dummy);
@@ -1282,53 +1375,58 @@ VirtualAGC::set_properties()
   _icon.CopyFromBitmap(wxBitmap(wxT("ApolloPatch2.png"), wxBITMAP_TYPE_ANY));
   SetIcon(_icon);
   SetBackgroundColour(wxColour(255, 255, 255));
-  Patch1Bitmap->SetToolTip(
-      wxT(
-          "This is the mission patch for the ill-fated Apollo 1 mission, which resulted in the deaths during a launch-pad test of astronauts Gus Grissom, Ed White, and Roger Chaffee."));
-  Patch7Bitmap->SetToolTip(
-      wxT(
-          "This is the mission patch for Apollo 7, the first mission which actually launched.  It was an Earth-orbital CM-only mission without an LM.  The astronauts were Wally Schirra, Donn Eisele, and Walt Cunningham."));
-  Patch8Bitmap->SetToolTip(
-      wxT(
-          "This is the mission patch for Apollo 8, which performed the famous lunar fly-by at Christmas in 1968.  It was a CM-only mission without an LM. The astronauts were Frank Borman, Jim Lovell, and Bill Anders."));
-  Patch9Bitmap->SetToolTip(
-      wxT(
-          "This is the mission patch for Apollo 9, the first mission with an LM.  This was an Earth-orbital test.  The astronauts were Jim McDivitt, Dave Scott, and Rusty Schweikart."));
-  Patch10Bitmap->SetToolTip(
-      wxT(
-          "This is the mission patch for Apollo 10, which was the first test of the LM in the lunar neighborhood (8.4 miles).  There must have been a great temptation to try to land, but the LM was slightly too heavy for this.  There was a mishap during the landing rehearsal in which control of the LM was temporarily compromised, but fortunately disaster was averted.  The astronauts were Tom Stafford, John Young, and Gene Cernan."));
-  Patch11Bitmap->SetToolTip(
-      wxT(
-          "This is the mission patch for Apollo 11, the famous first landing.  A faulty checklist procedure caused the rendezvous radar to remain activated during the landing.  The unwanted and unexpected extra data overloaded the AGC and caused spurious warning messages that could have resulted in an abort.  Fortunately the design of the AGC software allowed the computer to work around this problem, though at reduced capacity, and thus the landing was not aborted.  However, there were only seconds of fuel left after touchdown. The mission patch is unique in that the astronauts' names do not appear on it.  The astronauts were, of course, Neil Armstrong, Buzz Aldrin, and Michael Collins."));
-  Patch12Bitmap->SetToolTip(
-      wxT(
-          "This is the mission patch for Apollo 12.  The rocket was famously struck by lightning while still in Earth's atmosphere.  The astronauts were Pete Conrad, DickGordon, and Alan Bean."));
-  Patch13Bitmap->SetToolTip(
-      wxT(
-          "This is the mission patch for Apollo 13.  As is well-known, outgassing of oxygen from a ruptured tank en route to the moon averted any possibility of a landing.  The crew instead had to spend the entire journey in the LM to conserve the precious resources of the CM for eventual re-entry, but fortunately survived the experience.  The astronauts were Jim Lovell, Jack Swigert, and Fred Haise.  Swigert was a last-minute replacement for Ken Mattingly, who later flew on Apollo 16."));
-  Patch14Bitmap->SetToolTip(
-      wxT(
-          "This is the mission patch for Apollo 14.  The mission almost had an aborted landing due to a short-circuit sending faulty data to the AGC.  The astronauts were Alan Shepard, Stu Roosa, and Edgar Mitchell.  Shepard was the first American in space, but had flown no missions since then due to medical problems."));
-  Patch15Bitmap->SetToolTip(
-      wxT(
-          "This is the mission patch for Apollo 15.  This was the first mission involving the lunar rover vehicle.  The astronauts were Dave Scott, Al Worden, and Jim Irwin."));
-  Patch16Bitmap->SetToolTip(
-      wxT(
-          "This is the mission patch for Apollo 16.  The landing was nearly scrubbed because of a fault in the CM, but fortunately the landing took place.  The astronauts were Jim Young, Ken Mattingly, and Charles Duke."));
-  Patch17Bitmap->SetToolTip(
-      wxT(
-          "This is the mission patch for Apollo 17, the last moon landing in the Apollo program.  This was the only night launch in the Apollo program, and thus the only one which could be seen easily by large numbers of Americans.  It was also the first and only mission with a geologist aboard.  The astronauts were Gene Cernan, Ronald Evans, and Jack Schmitt.  Schmitt was the geologist and later a U.S. Senator."));
-  SimTypeLabel->SetBackgroundColour(wxColour(255, 255, 255));
-  SimTypeLabel->SetFont(wxFont(12, wxDEFAULT, wxNORMAL, wxBOLD, 1, wxT("")));
-  SimTypeLabel->SetToolTip(
-      wxT(
-          "In this area, you can select the Apollo mission and the spacecraft software version."));
-  SimTypeLabel2->SetBackgroundColour(wxColour(255, 255, 255));
-  SimTypeLabel2->SetFont(wxFont(12, wxDEFAULT, wxNORMAL, wxBOLD, 1, wxT("")));
-  SimTypeLabel2->SetToolTip(
-      wxT(
-          "In this area, you can select the Apollo mission and the spacecraft software version."));
+  if (!maximumSquish)
+    {
+      Patch1Bitmap->SetToolTip(
+          wxT(
+              "This is the mission patch for the ill-fated Apollo 1 mission, which resulted in the deaths during a launch-pad test of astronauts Gus Grissom, Ed White, and Roger Chaffee."));
+      Patch7Bitmap->SetToolTip(
+          wxT(
+              "This is the mission patch for Apollo 7, the first mission which actually launched.  It was an Earth-orbital CM-only mission without an LM.  The astronauts were Wally Schirra, Donn Eisele, and Walt Cunningham."));
+      Patch8Bitmap->SetToolTip(
+          wxT(
+              "This is the mission patch for Apollo 8, which performed the famous lunar fly-by at Christmas in 1968.  It was a CM-only mission without an LM. The astronauts were Frank Borman, Jim Lovell, and Bill Anders."));
+      Patch9Bitmap->SetToolTip(
+          wxT(
+              "This is the mission patch for Apollo 9, the first mission with an LM.  This was an Earth-orbital test.  The astronauts were Jim McDivitt, Dave Scott, and Rusty Schweikart."));
+      Patch10Bitmap->SetToolTip(
+          wxT(
+              "This is the mission patch for Apollo 10, which was the first test of the LM in the lunar neighborhood (8.4 miles).  There must have been a great temptation to try to land, but the LM was slightly too heavy for this.  There was a mishap during the landing rehearsal in which control of the LM was temporarily compromised, but fortunately disaster was averted.  The astronauts were Tom Stafford, John Young, and Gene Cernan."));
+      Patch11Bitmap->SetToolTip(
+          wxT(
+              "This is the mission patch for Apollo 11, the famous first landing.  A faulty checklist procedure caused the rendezvous radar to remain activated during the landing.  The unwanted and unexpected extra data overloaded the AGC and caused spurious warning messages that could have resulted in an abort.  Fortunately the design of the AGC software allowed the computer to work around this problem, though at reduced capacity, and thus the landing was not aborted.  However, there were only seconds of fuel left after touchdown. The mission patch is unique in that the astronauts' names do not appear on it.  The astronauts were, of course, Neil Armstrong, Buzz Aldrin, and Michael Collins."));
+      Patch12Bitmap->SetToolTip(
+          wxT(
+              "This is the mission patch for Apollo 12.  The rocket was famously struck by lightning while still in Earth's atmosphere.  The astronauts were Pete Conrad, DickGordon, and Alan Bean."));
+      Patch13Bitmap->SetToolTip(
+          wxT(
+              "This is the mission patch for Apollo 13.  As is well-known, outgassing of oxygen from a ruptured tank en route to the moon averted any possibility of a landing.  The crew instead had to spend the entire journey in the LM to conserve the precious resources of the CM for eventual re-entry, but fortunately survived the experience.  The astronauts were Jim Lovell, Jack Swigert, and Fred Haise.  Swigert was a last-minute replacement for Ken Mattingly, who later flew on Apollo 16."));
+      Patch14Bitmap->SetToolTip(
+          wxT(
+              "This is the mission patch for Apollo 14.  The mission almost had an aborted landing due to a short-circuit sending faulty data to the AGC.  The astronauts were Alan Shepard, Stu Roosa, and Edgar Mitchell.  Shepard was the first American in space, but had flown no missions since then due to medical problems."));
+      Patch15Bitmap->SetToolTip(
+          wxT(
+              "This is the mission patch for Apollo 15.  This was the first mission involving the lunar rover vehicle.  The astronauts were Dave Scott, Al Worden, and Jim Irwin."));
+      Patch16Bitmap->SetToolTip(
+          wxT(
+              "This is the mission patch for Apollo 16.  The landing was nearly scrubbed because of a fault in the CM, but fortunately the landing took place.  The astronauts were Jim Young, Ken Mattingly, and Charles Duke."));
+      Patch17Bitmap->SetToolTip(
+          wxT(
+              "This is the mission patch for Apollo 17, the last moon landing in the Apollo program.  This was the only night launch in the Apollo program, and thus the only one which could be seen easily by large numbers of Americans.  It was also the first and only mission with a geologist aboard.  The astronauts were Gene Cernan, Ronald Evans, and Jack Schmitt.  Schmitt was the geologist and later a U.S. Senator."));
+      SimTypeLabel->SetBackgroundColour(wxColour(255, 255, 255));
+      SimTypeLabel->SetFont(
+          wxFont(12, wxDEFAULT, wxNORMAL, wxBOLD, 1, wxT("")));
+      SimTypeLabel->SetToolTip(
+          wxT(
+              "In this area, you can select the Apollo mission and the spacecraft software version."));
+      SimTypeLabel2->SetBackgroundColour(wxColour(255, 255, 255));
+      SimTypeLabel2->SetFont(
+          wxFont(12, wxDEFAULT, wxNORMAL, wxBOLD, 1, wxT("")));
+      SimTypeLabel2->SetToolTip(
+          wxT(
+              "In this area, you can select the Apollo mission and the spacecraft software version."));
 
+    }
   int mission;
   for (mission = ID_FIRSTMISSION; mission < ID_AGCCUSTOMBUTTON; mission++)
     {
@@ -1356,11 +1454,15 @@ VirtualAGC::set_properties()
       wxT(
           "Click this button to select the name of the AGC runtime software using a file-selection dialog.  This can be either a pre-compiled binary, or it can be AGC assembly-language source code.  If the latter, then VirtualAGC will actually compile it for you using the yaYUL utility."));
   AgcFilenameBrowse->Enable(false);
-  DeviceListLabel->SetBackgroundColour(wxColour(255, 255, 255));
-  DeviceListLabel->SetFont(wxFont(12, wxDEFAULT, wxNORMAL, wxBOLD, 1, wxT("")));
-  DeviceListLabel->SetToolTip(
-      wxT(
-          "In this area, you can select the particular computers and peripherals devices which will be simulated, along with the controls that will be displayed."));
+  if (!maximumSquish)
+    {
+      DeviceListLabel->SetBackgroundColour(wxColour(255, 255, 255));
+      DeviceListLabel->SetFont(
+          wxFont(12, wxDEFAULT, wxNORMAL, wxBOLD, 1, wxT("")));
+      DeviceListLabel->SetToolTip(
+          wxT(
+              "In this area, you can select the particular computers and peripherals devices which will be simulated, along with the controls that will be displayed."));
+    }
   DeviceAgcCheckbox->SetBackgroundColour(wxColour(255, 255, 255));
   DeviceAgcCheckbox->SetToolTip(
       wxT(
@@ -1439,11 +1541,14 @@ VirtualAGC::set_properties()
   AeaSourceButton->SetToolTip(
       wxT(
           "Click this to view the selected AEA Flight Program assembly listing."));
-  OptionList->SetBackgroundColour(wxColour(255, 255, 255));
-  OptionList->SetFont(wxFont(12, wxDEFAULT, wxNORMAL, wxBOLD, 1, wxT("")));
-  OptionList->SetToolTip(
-      wxT(
-          "In this area, you can select various infrequently-used options that can assist in special purposes."));
+  if (!maximumSquish)
+    {
+      OptionList->SetBackgroundColour(wxColour(255, 255, 255));
+      OptionList->SetFont(wxFont(12, wxDEFAULT, wxNORMAL, wxBOLD, 1, wxT("")));
+      OptionList->SetToolTip(
+          wxT(
+              "In this area, you can select various infrequently-used options that can assist in special purposes."));
+    }
   StartupWipeButton->SetToolTip(
       wxT(
           "The magnetic-core memory of the AGC is \"persistent\", meaning that it retains its memory when power is off, and hence can resume the computer program after power-up that it was running before shutdown.  If you would prefer NOT to resume and instead to start with completely erased memory, then choose this option."));
@@ -1534,22 +1639,25 @@ VirtualAGC::set_properties()
   FlightProgram8Button->SetToolTip(
       wxT(
           "Click this to simulate the Apollo 15-17 LM.  This will run the AEA/AGS software designated as Flight Program 8 (December 1970)."));
-  AeaCustomButton->SetBackgroundColour(wxColour(255, 255, 255));
-  AeaCustomButton->SetToolTip(
-      wxT(
-          "Click here to run your own personal software creation on the AEA/AGS system.  You should first have compiled your assembly-language source code using the yaLEMAP program to create an executable binary."));
-  AeaCustomFilename->SetBackgroundColour(wxColour(255, 255, 255));
-  AeaCustomFilename->SetForegroundColour(wxColour(16, 16, 16));
-  AeaCustomFilename->SetToolTip(
-      wxT(
-          "If you wish to run abort-computer software you have written yourself rather than actual mission software, you can put the filename here.  It must already have been compiled into binary executable format.  If you want to actually compile the software in addition, use the \"...\" button to the right."));
-  AeaCustomFilename->Enable(false);
-  AeaFilenameBrowse->SetMinSize(wxSize(50, 24));
-  AeaFilenameBrowse->SetBackgroundColour(wxColour(240, 240, 240));
-  AeaFilenameBrowse->SetToolTip(
-      wxT(
-          "Click this button to select the name of the AEA runtime software using a file-selection dialog.  This can be either a pre-compiled binary, or it can be AEA assembly-language source code.  If the latter, then VirtualAGC will actually compile it for you using the yaLEMAP utility."));
-  AeaFilenameBrowse->Enable(false);
+  if (!maximumSquish)
+    {
+      AeaCustomButton->SetBackgroundColour(wxColour(255, 255, 255));
+      AeaCustomButton->SetToolTip(
+          wxT(
+              "Click here to run your own personal software creation on the AEA/AGS system.  You should first have compiled your assembly-language source code using the yaLEMAP program to create an executable binary."));
+      AeaCustomFilename->SetBackgroundColour(wxColour(255, 255, 255));
+      AeaCustomFilename->SetForegroundColour(wxColour(16, 16, 16));
+      AeaCustomFilename->SetToolTip(
+          wxT(
+              "If you wish to run abort-computer software you have written yourself rather than actual mission software, you can put the filename here.  It must already have been compiled into binary executable format.  If you want to actually compile the software in addition, use the \"...\" button to the right."));
+      AeaCustomFilename->Enable(false);
+      AeaFilenameBrowse->SetMinSize(wxSize(50, 24));
+      AeaFilenameBrowse->SetBackgroundColour(wxColour(240, 240, 240));
+      AeaFilenameBrowse->SetToolTip(
+          wxT(
+              "Click this button to select the name of the AEA runtime software using a file-selection dialog.  This can be either a pre-compiled binary, or it can be AEA assembly-language source code.  If the latter, then VirtualAGC will actually compile it for you using the yaLEMAP utility."));
+      AeaFilenameBrowse->Enable(false);
+    }
   RunButton->SetBackgroundColour(wxColour(240, 240, 240));
   RunButton->SetToolTip(
       wxT(
@@ -1608,49 +1716,52 @@ VirtualAGC::do_layout()
   wxGridSizer* RightSizer = new wxGridSizer(1, 6, 0, 0);
   wxBoxSizer* MiddleSizer = new wxBoxSizer(wxHORIZONTAL);
   wxGridSizer* LeftSizer = new wxGridSizer(1, 6, 0, 0);
-  TopSizer->Add(20, 5, 0, wxALIGN_CENTER_HORIZONTAL, 0);
-  LeftSizer->Add(Patch1Bitmap, 0,
-      wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  LeftSizer->Add(Patch7Bitmap, 0,
-      wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  LeftSizer->Add(Patch8Bitmap, 0,
-      wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  LeftSizer->Add(Patch9Bitmap, 0,
-      wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  LeftSizer->Add(Patch10Bitmap, 0,
-      wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  LeftSizer->Add(Patch11Bitmap, 0,
-      wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  HeaderSizer->Add(LeftSizer, 1, wxEXPAND, 0);
-  MiddleSizer->Add(20, 20, 1,
-      wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  MiddleSizer->Add(PatchBitmap, 0,
-      wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  MiddleSizer->Add(20, 20, 1,
-      wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  HeaderSizer->Add(MiddleSizer, 1, wxEXPAND, 0);
-  RightSizer->Add(Patch12Bitmap, 0,
-      wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  RightSizer->Add(Patch13Bitmap, 0,
-      wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  RightSizer->Add(Patch14Bitmap, 0,
-      wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  RightSizer->Add(Patch15Bitmap, 0,
-      wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  RightSizer->Add(Patch16Bitmap, 0,
-      wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  RightSizer->Add(Patch17Bitmap, 0,
-      wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  HeaderSizer->Add(RightSizer, 1, wxEXPAND, 0);
-  TopSizer->Add(HeaderSizer, 0, wxEXPAND, 0);
-  TopSizer->Add(20, 5, 0, wxALIGN_CENTER_HORIZONTAL, 0);
-  TopSizer->Add(TopLine, 0, wxEXPAND, 0);
-  sizer_4->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
-  sizer_4->Add(SimTypeLabel, 0, wxALIGN_CENTER_HORIZONTAL, 0);
-  sizer_11->Add(20, 20, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
-  sizer_14->Add(20, 10, 0, wxEXPAND, 0);
+  if (!maximumSquish)
+    {
+      TopSizer->Add(20, 5, 0, wxALIGN_CENTER_HORIZONTAL, 0);
+      LeftSizer->Add(Patch1Bitmap, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      LeftSizer->Add(Patch7Bitmap, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      LeftSizer->Add(Patch8Bitmap, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      LeftSizer->Add(Patch9Bitmap, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      LeftSizer->Add(Patch10Bitmap, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      LeftSizer->Add(Patch11Bitmap, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      HeaderSizer->Add(LeftSizer, 1, wxEXPAND, 0);
+      MiddleSizer->Add(20, 20, 1,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      MiddleSizer->Add(PatchBitmap, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      MiddleSizer->Add(20, 20, 1,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      HeaderSizer->Add(MiddleSizer, 1, wxEXPAND, 0);
+      RightSizer->Add(Patch12Bitmap, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      RightSizer->Add(Patch13Bitmap, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      RightSizer->Add(Patch14Bitmap, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      RightSizer->Add(Patch15Bitmap, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      RightSizer->Add(Patch16Bitmap, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      RightSizer->Add(Patch17Bitmap, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      HeaderSizer->Add(RightSizer, 1, wxEXPAND, 0);
+      TopSizer->Add(HeaderSizer, 0, wxEXPAND, 0);
+      TopSizer->Add(20, 5, 0, wxALIGN_CENTER_HORIZONTAL, 0);
+      TopSizer->Add(TopLine, 0, wxEXPAND, 0);
+      sizer_4->Add(20, 10, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      sizer_4->Add(SimTypeLabel, 0, wxALIGN_CENTER_HORIZONTAL, 0);
+      sizer_11->Add(20, 20, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      sizer_14->Add(20, 10, 0, wxEXPAND, 0);
+    }
   int mission;
   for (mission = ID_FIRSTMISSION; mission < ID_AGCCUSTOMBUTTON; mission++)
     sizer_19->Add(missionRadioButtons[mission - ID_FIRSTMISSION], 0, 0, 0);
@@ -1659,37 +1770,49 @@ VirtualAGC::do_layout()
   sizer_15->Add(AgcFilenameBrowse, 0, 0, 0);
   sizer_19->Add(sizer_15, 0, wxEXPAND | wxALIGN_CENTER_HORIZONTAL, 0);
   sizer_14->Add(sizer_19, 1, wxEXPAND, 0);
-  sizer_14->Add(20, 10, 0, wxEXPAND | wxALIGN_CENTER_HORIZONTAL, 0);
+  if (!maximumSquish)
+    sizer_14->Add(20, 10, 0, wxEXPAND | wxALIGN_CENTER_HORIZONTAL, 0);
   sizer_13->Add(sizer_14, 1, wxEXPAND, 0);
   sizer_11->Add(sizer_13, 1, wxEXPAND, 0);
-  sizer_11->Add(20, 20, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
+  if (!maximumSquish)
+    sizer_11->Add(20, 20, 0,
+        wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
   sizer_4->Add(sizer_11, 1, wxEXPAND, 0);
   sizer_2->Add(sizer_4, 1, wxEXPAND, 0);
 
   sizer_6->Add(static_line_2, 0, wxEXPAND, 0);
-  sizer_6->Add(20, 20, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
-  sizer_7->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
+  if (!maximumSquish)
+    sizer_6->Add(20, 20, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
+        0);
+  if (!maximumSquish)
+    sizer_7->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
+        0);
   if (DropDown)
     {
       sizer_2->Show(false);
-      sizer_7->Add(SimTypeLabel2, 0, wxALIGN_CENTER_HORIZONTAL, 0);
-      sizer_7->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-          0);
+      if (!maximumSquish)
+        {
+          sizer_7->Add(SimTypeLabel2, 0, wxALIGN_CENTER_HORIZONTAL, 0);
+          sizer_7->Add(20, 10, 0,
+              wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+        }
       sizer_7->Add(DeviceAGCversionDropDownList, 0, 0, 0);
-      sizer_7->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-          0);
+      if (!maximumSquish)
+        sizer_7->Add(20, 10, 0,
+            wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
     }
   else
     {
       DeviceAGCversionDropDownList->Show(false);
-      SimTypeLabel2->Show(false);
+      if (!maximumSquish)
+        SimTypeLabel2->Show(false);
     }
-  sizer_7->Add(DeviceListLabel, 0, wxALIGN_CENTER_HORIZONTAL, 0);
-  sizer_7->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
+  if (!maximumSquish)
+    {
+      sizer_7->Add(DeviceListLabel, 0, wxALIGN_CENTER_HORIZONTAL, 0);
+      sizer_7->Add(20, 10, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+    }
   sizer_7->Add(DeviceAgcCheckbox, 0, 0, 0);
   sizer_7->Add(DeviceDskyCheckbox, 0, 0, 0);
   sizer_37->Add(DeviceAcaCheckbox, 0, wxALIGN_CENTER_VERTICAL, 0);
@@ -1708,41 +1831,53 @@ VirtualAGC::do_layout()
   sizer_36->Add(DevicePropulsionCheckbox, 0, 0, 0);
   sizer_35->Add(sizer_36, 15, wxEXPAND, 0);
   sizer_7->Add(sizer_35, 1, wxEXPAND, 0);
-  sizer_7->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
+  if (!maximumSquish)
+    sizer_7->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
+        0);
   sizer_12->Add(NoviceButton, 0, 0, 2);
-  sizer_12->Add(20, 20, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
+  if (!maximumSquish)
+    sizer_12->Add(20, 20, 0,
+        wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
   sizer_12->Add(ExpertButton, 0, 0, 0);
   sizer_7->Add(sizer_12, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
       0);
-  sizer_7->Add(20, 10, 0, 0, 0);
+  if (!maximumSquish)
+    sizer_7->Add(20, 10, 0, 0, 0);
   sizer_6->Add(sizer_7, 1, wxALIGN_CENTER_HORIZONTAL, 0);
-  sizer_6->Add(20, 20, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
+  if (!maximumSquish)
+    sizer_6->Add(20, 20, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
+        0);
   sizer_6->Add(static_line_3, 0, wxEXPAND, 0);
   sizer_5->Add(sizer_6, 0, wxEXPAND, 0);
   sizer_5->Add(static_line_5, 0, wxEXPAND, 0);
-  sizer_5->Add(20, 10, 10, wxEXPAND, 0);
-  sizer_1_copy->Add(20, 20, 1, 0, 0);
+  if (!maximumSquish)
+    sizer_5->Add(20, 10, 10, wxEXPAND, 0);
+  if (!maximumSquish)
+    sizer_1_copy->Add(20, 20, 1, 0, 0);
   sizer_1_copy->Add(AgcSourceButton, 0, wxALIGN_CENTER_HORIZONTAL, 0);
-  sizer_1_copy->Add(20, 20, 0, 0, 0);
+  if (!maximumSquish)
+    sizer_1_copy->Add(20, 20, 0, 0, 0);
   sizer_1_copy->Add(AeaSourceButton, 0, 0, 0);
-  sizer_1_copy->Add(20, 20, 1, 0, 0);
+  if (!maximumSquish)
+    sizer_1_copy->Add(20, 20, 1, 0, 0);
   if (DropDown)
-    sizer_1->Add(20,20,0,0,0);
+    sizer_1->Add(20, 20, 0, 0, 0);
   sizer_1->Add(sizer_1_copy, 1, wxEXPAND, 0);
   sizer_5->Add(sizer_1, 0, wxEXPAND, 0);
-  sizer_5->Add(20, 10, 0, wxEXPAND, 0);
+  if (!maximumSquish)
+    sizer_5->Add(20, 10, 0, wxEXPAND, 0);
   sizer_2->Add(sizer_5, 1, wxEXPAND, 0);
   optionsBox = sizer_8;
-  sizer_8->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
-  sizer_8->Add(OptionList, 0, wxALIGN_CENTER_HORIZONTAL, 0);
-  sizer_8->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
-  sizer_9->Add(20, 20, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
+  if (!maximumSquish)
+    {
+      sizer_8->Add(20, 10, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      sizer_8->Add(OptionList, 0, wxALIGN_CENTER_HORIZONTAL, 0);
+      sizer_8->Add(20, 10, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      sizer_9->Add(20, 20, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+    }
   agcStartupBox = sizer_18;
   sizer_18->Add(StartupWipeButton, 0, 0, 0);
   sizer_18->Add(StartupPreserveButton, 0, 0, 0);
@@ -1753,7 +1888,8 @@ VirtualAGC::do_layout()
   sizer_34->Add(CoreSaveButton, 0, 0, 0);
   sizer_18->Add(sizer_34, 1, wxEXPAND, 0);
   sizer_10->Add(sizer_18, 0, wxEXPAND, 0);
-  sizer_10->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL, 0);
+  if (!maximumSquish)
+    sizer_10->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL, 0);
   interfaceStylesBox = grid_sizer_2;
   grid_sizer_2->Add(DskyLabel, 0, wxALIGN_CENTER_VERTICAL, 0);
   grid_sizer_2->Add(DskyFullButton, 0, 0, 0);
@@ -1772,7 +1908,8 @@ VirtualAGC::do_layout()
   grid_sizer_2->Add(20, 20, 0, 0, 0);
   sizer_22->Add(grid_sizer_2, 1, wxEXPAND, 0);
   sizer_10->Add(sizer_22, 0, wxEXPAND, 0);
-  sizer_10->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL, 0);
+  if (!maximumSquish)
+    sizer_10->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL, 0);
   debuggerBox = grid_sizer_1;
   grid_sizer_1->Add(AgcDebugLabel, 0, wxALIGN_CENTER_VERTICAL, 0);
   grid_sizer_1->Add(AgcDebugNormalButton, 0, wxALIGN_CENTER_VERTICAL, 0);
@@ -1784,30 +1921,37 @@ VirtualAGC::do_layout()
       wxEXPAND | wxALIGN_CENTER_VERTICAL, 0);
   sizer_38->Add(grid_sizer_1, 1, wxEXPAND, 0);
   sizer_10->Add(sizer_38, 0, wxEXPAND, 0);
-  sizer_10->Add(20, 1, 1, wxEXPAND | wxALIGN_CENTER_HORIZONTAL, 0);
+  if (!maximumSquish)
+    sizer_10->Add(20, 1, 1, wxEXPAND | wxALIGN_CENTER_HORIZONTAL, 0);
   sizer_20->Add(FlightProgram4Button, 0, 0, 0);
   sizer_20->Add(FlightProgram5Button, 0, 0, 0);
   sizer_20->Add(FlightProgram6Button, 0, 0, 0);
   sizer_20->Add(FlightProgram7Button, 0, 0, 0);
   sizer_20->Add(FlightProgram8Button, 0, 0, 0);
-  sizer_15_copy->Add(AeaCustomButton, 0, 0, 0);
-  sizer_15_copy->Add(AeaCustomFilename, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL,
-      0);
-  sizer_15_copy->Add(AeaFilenameBrowse, 0, 0, 0);
-  sizer_20->Add(sizer_15_copy, 0, wxEXPAND | wxALIGN_CENTER_HORIZONTAL, 0);
+  if (!maximumSquish)
+    {
+      sizer_15_copy->Add(AeaCustomButton, 0, 0, 0);
+      sizer_15_copy->Add(AeaCustomFilename, 1,
+          wxEXPAND | wxALIGN_CENTER_VERTICAL, 0);
+      sizer_15_copy->Add(AeaFilenameBrowse, 0, 0, 0);
+      sizer_20->Add(sizer_15_copy, 0, wxEXPAND | wxALIGN_CENTER_HORIZONTAL, 0);
+    }
   sizer_30->Add(sizer_20, 0, wxEXPAND, 0);
   sizer_29->Add(sizer_30, 1, wxEXPAND, 0);
   sizer_10->Add(sizer_29, 0, wxEXPAND, 0);
-  sizer_10->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL, 0);
+  if (!maximumSquish)
+    sizer_10->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL, 0);
   sizer_9->Add(sizer_10, 0, wxEXPAND, 0);
-  sizer_9->Add(20, 20, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
+  if (!maximumSquish)
+    sizer_9->Add(20, 20, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
+        0);
   sizer_8->Add(sizer_9, 1, wxEXPAND, 0);
   sizer_2->Add(sizer_8, 1, wxEXPAND, 0);
   TopSizer->Add(sizer_2, 0, wxEXPAND, 0);
   TopSizer->Add(static_line_1, 0, wxEXPAND, 0);
-  TopSizer->Add(20, 15, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
+  if (!maximumSquish)
+    TopSizer->Add(20, 15, 0,
+        wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
   sizer_3->Add(RunButton, 0,
       wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
   sizer_3->Add(40, 40, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
@@ -1820,8 +1964,9 @@ VirtualAGC::do_layout()
       wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
   TopSizer->Add(sizer_3, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
       0);
-  TopSizer->Add(20, 15, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
+  if (!maximumSquish)
+    TopSizer->Add(20, 15, 0,
+        wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
   SetSizer(TopSizer);
   TopSizer->Fit(this);
   Layout();
@@ -1841,8 +1986,83 @@ bool
 VirtualAgcApp::OnInit()
 {
   wxInitAllImageHandlers();
-  //if (argc > 1)
-  //  wxMessageBox (wxT ("Arguments!"));
+
+  for (int i = 1; i < argc; i++)
+    {
+      wxString Arg = argv[i];
+      wxString ArgStart = Arg.BeforeFirst('=');
+      wxString ArgEnd = Arg.AfterFirst('=');
+
+      if (Arg.IsSameAs(wxT("--squish")))
+        {
+          noSquish = 0;
+          dropdownSquish = 0;
+          maximumSquish = 1;
+        }
+      else if (Arg.IsSameAs(wxT("--dropdown")))
+        {
+          noSquish = 0;
+          dropdownSquish = 1;
+          maximumSquish = 0;
+        }
+      else if (Arg.IsSameAs(wxT("--radio-buttons")))
+        {
+          noSquish = 1;
+          dropdownSquish = 0;
+          maximumSquish = 0;
+        }
+      else if (Arg.IsSameAs(wxT("--maximize")))
+        {
+          maximizeAtStartup = 1;
+        }
+      else
+        {
+          Help: printf("USAGE:\n");
+          printf("\tVirtualAGC [OPTIONS]\n");
+          printf("The available options are:\n");
+          printf("--radio-buttons\n");
+          printf("\tSets main-window size appropriate to the largest\n");
+          printf("\tdisplay screens ... varies by target platform, but\n");
+          printf("\tprobably okay as long as there are at least 1024\n");
+          printf("\tof usable pixel rows on the desktop. The name\n");
+          printf("\t(radio buttons) refers to the fact that mission\n");
+          printf("\tselection is performed using a bit list of so-called\n");
+          printf("\t\"radio buttons\".\n");
+          printf("--dropdown\n");
+          printf("\tSets the main-window size suitable for a smaller\n");
+          printf("\tdisplay-screen size.  This is the default, in regard\n");
+          printf("\tto --radio-buttons vs --dropdown vs --squish.\n");
+          printf("\tactual sizes vary by target platform, but probably\n");
+          printf("\tworks at least as small as 700 usable pixel rows.\n");
+          printf("--squish\n");
+          printf("\tReduces the user interface to the smallest possible\n");
+          printf("\tsize ... removing all decoration, extra spacing,\n");
+          printf("\ttitles, and even some options.  This is known to\n");
+          printf("\tfit in 480 pixel rows (Raspberry Pi 7-inch touchscreen)\n");
+          printf("\tbut the actual size will vary by target platform.\n");
+          printf("\tNote that when run in this mode there is no title\n");
+          printf("\tbar on the main window, and hence no exit (X) button\n");
+          printf("\tin the (non-existent) title bar, so the program can\n");
+          printf("\tonly be exited by hitting the EXIT button at the\n");
+          printf("\tbottom of the main window or from the desktop taskbar,\n");
+          printf("\tif any.  Similarly, there is no minimization (-)\n");
+          printf("\tbutton, so the program can only be minimized or\n");
+          printf("\tunminimized from the desktop taskbar, if any.\n");
+          printf("\tThe main window can, however, still be dragged on the\n");
+          printf("\tdesktop, by grabbing and dragging the window border.\n");
+          printf("--maximize\n");
+          printf("\tUsed only with --squish, to run VirtualAGC maximized.\n");
+          printf("\tThis may be useful in a kiosk.  Note, though, that\n");
+          printf("\twith --squish there is no title bar and hence no way\n");
+          printf("\tto unmaximize the program after it is started up.\n");
+          printf("\tNote that the program does not generally have a\n");
+          printf("\tmaximization button, nor is it generally resizable.\n");
+          printf("\tso --maximize is actually the only method provided of\n");
+          printf("\tmaximizing the program anyway.\n");
+          exit(1);
+        }
+    }
+
   MainFrame = new VirtualAGC(NULL, wxID_ANY, wxEmptyString);
   SetTopWindow(MainFrame);
   MainFrame->Show();
@@ -1865,10 +2085,13 @@ VirtualAGC::ConvertDropDown(void)
 {
   wxString selectedMission;
   int mission;
-  selectedMission = DeviceAGCversionDropDownList->GetString(DeviceAGCversionDropDownList->GetSelection());
+  selectedMission = DeviceAGCversionDropDownList->GetString(
+      DeviceAGCversionDropDownList->GetSelection());
   for (mission = ID_FIRSTMISSION; mission < ID_AGCCUSTOMBUTTON; mission++)
     {
-      if (selectedMission == wxString::FromUTF8(missionConstants[mission - ID_FIRSTMISSION].name))
+      if (selectedMission
+          == wxString::FromUTF8(
+              missionConstants[mission - ID_FIRSTMISSION].name))
         {
           missionRadioButtons[mission - ID_FIRSTMISSION]->SetValue(true);
           break;
@@ -1883,8 +2106,10 @@ VirtualAGC::ConvertRadio(void)
   for (int mission = ID_FIRSTMISSION; mission < ID_AGCCUSTOMBUTTON; mission++)
     if (missionRadioButtons[mission - ID_FIRSTMISSION]->GetValue())
       {
-        wxString missionName = wxString::FromUTF8(missionConstants[mission - ID_FIRSTMISSION].name);
-        for (int drop = 0; drop < DeviceAGCversionDropDownList->GetCount(); drop++)
+        wxString missionName = wxString::FromUTF8(
+            missionConstants[mission - ID_FIRSTMISSION].name);
+        for (int drop = 0; drop < DeviceAGCversionDropDownList->GetCount();
+            drop++)
           {
             if (DeviceAGCversionDropDownList->GetString(drop) == missionName)
               {
@@ -2014,7 +2239,8 @@ VirtualAGC::EnforceConsistency(void)
       (FlightProgram6Button->IsEnabled() && FlightProgram6Button->GetValue())
           || (FlightProgram8Button->IsEnabled()
               && FlightProgram8Button->GetValue())
-          || (AeaCustomButton->IsEnabled() && AeaCustomButton->GetValue()
+          || (!maximumSquish && AeaCustomButton->IsEnabled()
+              && AeaCustomButton->GetValue()
               && !AeaCustomFilename->GetValue().IsEmpty()));
   CoreFilename->Enable(CustomResumeButton->GetValue());
   CoreBrowse->Enable(CustomResumeButton->GetValue());
@@ -2037,8 +2263,11 @@ VirtualAGC::EnableAEA(bool YesNo)
 {
   FlightProgram6Button->Enable(YesNo);
   FlightProgram8Button->Enable(YesNo);
-  AeaCustomButton->Enable(YesNo);
-  EnableCustomAEA(YesNo && AeaCustomButton->GetValue());
+  if (!maximumSquish)
+    {
+      AeaCustomButton->Enable(YesNo);
+      EnableCustomAEA(YesNo && AeaCustomButton->GetValue());
+    }
   DeviceDedaCheckbox->Enable(false);
   EnableDEDA(YesNo && DeviceDedaCheckbox->GetValue());
   AeaDebugNormalButton->Enable(YesNo);
@@ -2066,9 +2295,12 @@ VirtualAGC::EnableCustomAGC(bool YesNo)
 void
 VirtualAGC::EnableCustomAEA(bool YesNo)
 {
-  //AeaFilenameLabel->Enable (YesNo);
-  AeaCustomFilename->Enable(YesNo);
-  AeaFilenameBrowse->Enable(YesNo);
+  if (!maximumSquish)
+    {
+      //AeaFilenameLabel->Enable (YesNo);
+      AeaCustomFilename->Enable(YesNo);
+      AeaFilenameBrowse->Enable(YesNo);
+    }
 }
 
 // This function either enables or disables the LM-Simulator controls
@@ -2089,7 +2321,10 @@ VirtualAGC::SetDefaultConfiguration(void)
   missionRadioButtons[ID_LUMINARY131BUTTON - ID_FIRSTMISSION]->SetValue(true);
   AgcCustomFilename->SetValue(wxT(""));
   FlightProgram6Button->SetValue(true);
-  AeaCustomFilename->SetValue(wxT(""));
+  if (!maximumSquish)
+    {
+      AeaCustomFilename->SetValue(wxT(""));
+    }
   DeviceAgcCheckbox->SetValue(true);
   DeviceDskyCheckbox->SetValue(true);
   DeviceAcaCheckbox->SetValue(false);
@@ -2104,7 +2339,7 @@ VirtualAGC::SetDefaultConfiguration(void)
   DevicePropulsionCheckbox->SetValue(false);
   StartupWipeButton->SetValue(true);
   AgcDebugNormalButton->SetValue(true);
-  if (Points >= StartingPoints)
+  if (Points >= StartingPoints && !maximumSquish)
     {
       DedaFullButton->SetValue(true);
       DskyFullButton->SetValue(true);
@@ -2154,19 +2389,27 @@ VirtualAGC::ReadConfigurationFile(void)
               Line = Fin.GetLine(i);
               Name = Line.BeforeFirst('=');
               Value = Line.AfterFirst('=');
-              if (Name.IsSameAs(wxT("missionRadioButtons[mission - ID_FIRSTMISSION]")))
+              if (Name.IsSameAs(
+                  wxT("missionRadioButtons[mission - ID_FIRSTMISSION]")))
                 mission++;
               CHECK_TEXT_SETTING(AgcCustomFilename);
-              CHECK_TEXT_SETTING(AeaCustomFilename);
+              if (!maximumSquish)
+                {
+                  CHECK_TEXT_SETTING(AeaCustomFilename);
+                }
               CHECK_TEXT_SETTING(CoreFilename);
-              CHECK_TRUE_FALSE_SETTING(missionRadioButtons[mission - ID_FIRSTMISSION]);
+              CHECK_TRUE_FALSE_SETTING(
+                  missionRadioButtons[mission - ID_FIRSTMISSION]);
               CHECK_TRUE_FALSE_SETTING(AgcCustomButton);
               CHECK_TRUE_FALSE_SETTING(FlightProgram4Button);
               CHECK_TRUE_FALSE_SETTING(FlightProgram5Button);
               CHECK_TRUE_FALSE_SETTING(FlightProgram6Button);
               CHECK_TRUE_FALSE_SETTING(FlightProgram7Button);
               CHECK_TRUE_FALSE_SETTING(FlightProgram8Button);
-              CHECK_TRUE_FALSE_SETTING(AeaCustomButton);
+              if (!maximumSquish)
+                {
+                  CHECK_TRUE_FALSE_SETTING(AeaCustomButton);
+                }
               CHECK_TRUE_FALSE_SETTING(DeviceAgcCheckbox);
               CHECK_TRUE_FALSE_SETTING(DeviceDskyCheckbox);
               CHECK_TRUE_FALSE_SETTING(DeviceAcaCheckbox);
@@ -2234,7 +2477,10 @@ VirtualAGC::WriteConfigurationFile(void)
   if (Fout.Create(wxT("VirtualAGC.cfg"), true))
     {
       WRITE_TEXT_SETTING(AgcCustomFilename);
-      WRITE_TEXT_SETTING(AeaCustomFilename);
+      if (!maximumSquish)
+        {
+          WRITE_TEXT_SETTING(AeaCustomFilename);
+        }
       WRITE_TEXT_SETTING(CoreFilename);
       int mission;
       if (DropDown)
@@ -2250,7 +2496,10 @@ VirtualAGC::WriteConfigurationFile(void)
       WRITE_TRUE_FALSE_SETTING(FlightProgram6Button);
       WRITE_TRUE_FALSE_SETTING(FlightProgram7Button);
       WRITE_TRUE_FALSE_SETTING(FlightProgram8Button);
-      WRITE_TRUE_FALSE_SETTING(AeaCustomButton);
+      if (!maximumSquish)
+        {
+          WRITE_TRUE_FALSE_SETTING(AeaCustomButton);
+        }
       WRITE_TRUE_FALSE_SETTING(DeviceAgcCheckbox);
       WRITE_TRUE_FALSE_SETTING(DeviceDskyCheckbox);
       WRITE_TRUE_FALSE_SETTING(DeviceAcaCheckbox);
@@ -2462,9 +2711,9 @@ VirtualAGC::FormCommands(void)
       yaDSKY = localExecutableDirectory + PathDelimiter;
 #ifdef __APPLE__
       if (block1)
-    	  yaDSKY += wxT ("yaDSKYb1.app/Contents/MacOS/");
+      yaDSKY += wxT ("yaDSKYb1.app/Contents/MacOS/");
       else
-    	  yaDSKY += wxT ("yaDSKY2.app/Contents/MacOS/");
+      yaDSKY += wxT ("yaDSKY2.app/Contents/MacOS/");
 #endif
       if (block1)
         {
@@ -2535,7 +2784,7 @@ VirtualAGC::FormCommands(void)
         CoreBin = wxT("source/FP7/FP7.bin");
       else if (FlightProgram8Button->GetValue())
         CoreBin = wxT("source/FP8/FP8.bin");
-      else if (AeaCustomButton->GetValue())
+      else if (!maximumSquish && AeaCustomButton->GetValue())
         CoreBin = AeaCustomFilename->GetValue();
       else
         // This can't happen.
@@ -2646,7 +2895,8 @@ VirtualAGC::FormCommands(void)
         }
       else
         {
-          yaAGC += wxT(" --cfg=") + wxString::FromUTF8(dskyIni) /*CMorLM + wxT(".ini")*/;
+          yaAGC += wxT(" --cfg=")
+              + wxString::FromUTF8(dskyIni) /*CMorLM + wxT(".ini")*/;
         }
       if (StartupResumeButton->GetValue()
           && wxFileExists(CMorLM + wxT(".core")))
@@ -2666,7 +2916,8 @@ VirtualAGC::FormCommands(void)
       if (block1)
         yaDSKY += wxT(" --port=") + Port;
       else
-        yaDSKY += wxT(" --cfg=") + wxString::FromUTF8(dskyIni) /* CMorLM + wxT(".ini") */ + wxT(" --port=") + Port;
+        yaDSKY += wxT(" --cfg=") + wxString::FromUTF8(dskyIni) /* CMorLM + wxT(".ini") */
+        + wxT(" --port=") + Port;
     }
   return (true);
 }
@@ -2879,8 +3130,9 @@ Simulation::Simulation(wxWindow* parent, int id, const wxString& title,
       wxT("To do the same thing from a command line ..."));
   sizer_33_staticbox = new wxStaticBox(UplinkPanel, -1,
       wxT("Digital uplink status"));
-  PatchBitmap = new wxStaticBitmap(this, wxID_ANY,
-      wxBitmap(wxT("ApolloPatch2.png"), wxBITMAP_TYPE_ANY));
+  if (!maximumSquish)
+    PatchBitmap = new wxStaticBitmap(this, wxID_ANY,
+        wxBitmap(wxT("ApolloPatch2.png"), wxBITMAP_TYPE_ANY));
   SimulationLabel = new wxStaticText(this, ID_SIMULATIONLABEL,
       wxT("Apollo 13 Lunar Module\nsimulation in progress!"), wxDefaultPosition,
       wxDefaultSize, wxALIGN_CENTRE);
@@ -3022,48 +3274,63 @@ Simulation::do_layout()
   wxBoxSizer* sizer_16 = new wxBoxSizer(wxHORIZONTAL);
   wxBoxSizer* sizer_27 = new wxBoxSizer(wxHORIZONTAL);
   wxBoxSizer* sizer_26 = new wxBoxSizer(wxHORIZONTAL);
-  sizer_25->Add(20, 10, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
-  sizer_26->Add(20, 20, 1, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
-  sizer_26->Add(PatchBitmap, 0,
-      wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  sizer_26->Add(20, 20, 1, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
+  if (!maximumSquish)
+    sizer_25->Add(20, 10, 0,
+        wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+  if (!maximumSquish)
+    {
+      sizer_26->Add(20, 20, 1,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      sizer_26->Add(PatchBitmap, 0,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+      sizer_26->Add(20, 20, 1,
+          wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+    }
   sizer_25->Add(sizer_26, 0,
       wxEXPAND | wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  sizer_25->Add(20, 20, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
-  sizer_27->Add(20, 20, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
+  if (!maximumSquish)
+    sizer_25->Add(20, 20, 0,
+        wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+  if (!maximumSquish)
+    sizer_27->Add(20, 20, 0,
+        wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
   sizer_27->Add(SimulationLabel, 1,
       wxEXPAND | wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  sizer_27->Add(20, 20, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
+  if (!maximumSquish)
+    sizer_27->Add(20, 20, 0,
+        wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
   sizer_25->Add(sizer_27, 0, wxEXPAND, 0);
-  sizer_25->Add(20, 20, 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL,
-      0);
-  sizer_16->Add(20, 20, 1, 0, 0);
+  if (!maximumSquish)
+    sizer_25->Add(20, 20, 0,
+        wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
+  if (!maximumSquish)
+    sizer_16->Add(20, 20, 1, 0, 0);
   sizer_16->Add(MoreButton, 0,
       wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
   sizer_16->Add(50, 20, 0, 0, 0);
   sizer_16->Add(LessButton, 0,
       wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 0);
-  sizer_16->Add(50, 20, 0, 0, 0);
+  if (!maximumSquish)
+    sizer_16->Add(50, 20, 0, 0, 0);
   sizer_16->Add(UploadButton, 0, 0, 0);
-  sizer_16->Add(20, 20, 1, 0, 0);
+  if (!maximumSquish)
+    sizer_16->Add(20, 20, 1, 0, 0);
   sizer_25->Add(sizer_16, 0, wxEXPAND, 0);
-  sizer_25->Add(20, 10, 0, 0, 0);
+  if (!maximumSquish)
+    sizer_25->Add(20, 10, 0, 0, 0);
   sizer_33->Add(UplinkText, 1, wxEXPAND, 0);
   UplinkPanel->SetSizer(sizer_33);
   sizer_25->Add(UplinkPanel, 1, wxEXPAND, 0);
-  sizer_17->Add(10, 20, 0, 0, 0);
+  if (!maximumSquish)
+    sizer_17->Add(10, 20, 0, 0, 0);
   sizer_32->Add(ScriptText, 1, wxEXPAND, 0);
   ScriptPanel->SetSizer(sizer_32);
   sizer_31->Add(ScriptPanel, 0, wxEXPAND, 0);
-  sizer_31->Add(20, 10, 0, 0, 0);
+  if (!maximumSquish)
+    sizer_31->Add(20, 10, 0, 0, 0);
   sizer_17->Add(sizer_31, 1, wxEXPAND, 0);
-  sizer_17->Add(10, 20, 0, 0, 0);
+  if (!maximumSquish)
+    sizer_17->Add(10, 20, 0, 0, 0);
   DetailPanel->SetSizer(sizer_17);
   sizer_25->Add(DetailPanel, 1, wxEXPAND, 0);
   SetSizer(sizer_25);
@@ -3255,7 +3522,7 @@ Simulation::Upload(wxString &Filename)
                   case ' ':
                     Keycode = 255;
                     break;
-                  case 'P':  // The "PRO" key has no keycode, and falls through.
+                  case 'P': // The "PRO" key has no keycode, and falls through.
                   default:
                     Keycode = -1;
                     break;
